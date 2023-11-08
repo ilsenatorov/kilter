@@ -1,2 +1,5 @@
 .*
 !.gitignore
+__*__
+*.csv
+*.pt
