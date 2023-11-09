@@ -2,7 +2,7 @@ import argparse
 import pytorch_lightning as pl
 import torch
 import wandb
-from src.models.vit import KilterModel
+from src.models.predict_vit import KilterModel
 from src.data.datamodules import KilterDataModule
 
 torch.set_float32_matmul_precision("medium")
@@ -22,7 +22,6 @@ parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
 args = parser.parse_args()
 
 
-# Create config dictionary from command-line arguments
 config = vars(args)
 
 model = KilterModel(config)

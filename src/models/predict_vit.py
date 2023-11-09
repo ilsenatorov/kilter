@@ -10,7 +10,7 @@ class KilterModel(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.vit = ViT(
-            image_size=50,
+            image_size=48,
             channels=4,
             patch_size=10,
             num_classes=config["embedding_dim"],
@@ -64,7 +64,7 @@ class KilterModel(pl.LightningModule):
         return self.shared_step(batch, "test")
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-5)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
         lr_scheduler = {
             "monitor": "val/loss",
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(

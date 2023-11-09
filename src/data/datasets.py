@@ -44,7 +44,7 @@ class KilterDataset(Dataset):
         return data
 
     def encode_frame(self, frames: str) -> torch.Tensor:
-        matrix = torch.zeros((4, 50, 50), dtype=torch.long)
+        matrix = torch.zeros((4, 48, 48), dtype=torch.long)
         for frame in frames.split("p")[1:]:
             hold_id, color = frame.split("r")
             hold_id, color = int(hold_id), int(color) - 12
@@ -63,3 +63,29 @@ class KilterDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+
+class KilterDiffusionDataset(KilterDataset):
+    def __init__(
+        self,
+        root_dir: str = "data",
+        transform=None,
+    ):
+        self.root_dir = Path(root_dir)
+        self.climbs = pd.read_csv(
+            self.root_dir / "raw/all_climbs.csv", index_col=0
+        ).sort_values("ascensionist_count", ascending=False)
+        self.climbs.drop_duplicates("frames", keep="first", inplace=True)
+        self.holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
+        self.transform = transform
+        self.data = self._load_or_preprocess_data()
+
+    def _load_or_preprocess_data(self):
+        processed_file = Path(self.root_dir) / f"processed/diffusion.pt"
+        if processed_file.exists():
+            data = torch.load(processed_file)
+        else:
+            data = self._preprocess_data()
+            (self.root_dir / "processed").mkdir(parents=True, exist_ok=True)
+            torch.save(data, processed_file)
+        return data
