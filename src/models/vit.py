@@ -18,8 +18,8 @@ class KilterModel(pl.LightningModule):
             depth=config["depth"],
             heads=config["heads"],
             mlp_dim=config["mlp_dim"],
-            dropout=0.1,
-            emb_dropout=0.1,
+            dropout=config["dropout"],
+            emb_dropout=config["dropout"],
         )
         self.angle_mlp = nn.Sequential(nn.Linear(1, 16), nn.ReLU())
         self.combined_mlp = nn.Sequential(nn.Linear(config["embedding_dim"] + 16, 1))
@@ -64,7 +64,7 @@ class KilterModel(pl.LightningModule):
         return self.shared_step(batch, "test")
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-5)
         lr_scheduler = {
             "monitor": "val/loss",
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(

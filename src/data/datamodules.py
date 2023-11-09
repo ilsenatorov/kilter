@@ -13,9 +13,9 @@ class KilterDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         # Define your datasets
-        self.train_dataset = KilterDataset(split="train", transform=self.transform)
-        self.val_dataset = KilterDataset(split="val", transform=self.transform)
-        self.test_dataset = KilterDataset(split="test", transform=self.transform)
+        self.train = KilterDataset(split="train", transform=self.transform)
+        self.val = KilterDataset(split="val", transform=self.transform)
+        self.test = KilterDataset(split="test", transform=self.transform)
 
     def dataloader(self, dataset, shuffle: bool = True):
         return DataLoader(

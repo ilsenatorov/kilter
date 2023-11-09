@@ -18,7 +18,7 @@ parser.add_argument("--heads", type=int, default=8, help="Number of attention he
 parser.add_argument("--mlp_dim", type=int, default=512, help="MLP dimension")
 parser.add_argument("--batch_size", type=int, default=512, help="Batch size")
 parser.add_argument("--num_workers", type=int, default=16, help="Number of workers")
-parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
 args = parser.parse_args()
 
 
