@@ -23,18 +23,21 @@ config = vars(args)
 model = DiffusionUNet(config)
 
 ds = KilterDiffusionDataset()
-dl = DataLoader(
-    ds, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True
-)
+dl = DataLoader(ds, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
 wandb.init(config=config, project="kilter_diffusion")
 
 trainer = pl.Trainer(
     accelerator="gpu",
     devices=-1,
-    logger=pl.loggers.WandbLogger(log_model="all", save_dir="logs"),
+    logger=pl.loggers.WandbLogger(log_model=True, save_dir="logs"),
     max_epochs=1000,
     precision="bf16-mixed",
+    callbacks=[
+        pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-2),
+        pl.callbacks.ModelCheckpoint(monitor="train/loss", mode="min", save_top_k=1),
+        pl.callbacks.EarlyStopping(monitor="train/loss", mode="min", patience=10),
+    ],
 )
 
 trainer.fit(model=model, train_dataloaders=dl)

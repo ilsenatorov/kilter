@@ -3,6 +3,7 @@ import torch
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
+from ..utils import encode_frame
 
 
 class KilterDataset(Dataset):
@@ -37,21 +38,11 @@ class KilterDataset(Dataset):
     def _preprocess_data(self):
         data = []
         for _, row in tqdm(self.climbs.iterrows()):
-            img = self.encode_frame(row["frames"])
+            img = encode_frame(row["frames"], self.holds)
             angle = float(row["angle"])
             difficulty = float(row["difficulty_average"])
             data.append((img, angle, difficulty))
         return data
-
-    def encode_frame(self, frames: str) -> torch.Tensor:
-        matrix = torch.zeros((4, 48, 48), dtype=torch.long)
-        for frame in frames.split("p")[1:]:
-            hold_id, color = frame.split("r")
-            hold_id, color = int(hold_id), int(color) - 12
-            hold = self.holds.loc[hold_id]
-            x, y = (hold.x - 4) // 4, (hold.y - 4) // 4
-            matrix[color, x, y] = 1
-        return matrix.float()
 
     def __getitem__(self, idx):
         image, angle, difficulty = self.data[idx]
@@ -72,9 +63,9 @@ class KilterDiffusionDataset(KilterDataset):
         transform=None,
     ):
         self.root_dir = Path(root_dir)
-        self.climbs = pd.read_csv(
-            self.root_dir / "raw/all_climbs.csv", index_col=0
-        ).sort_values("ascensionist_count", ascending=False)
+        self.climbs = pd.read_csv(self.root_dir / "raw/all_climbs.csv", index_col=0).sort_values(
+            "ascensionist_count", ascending=False
+        )
         self.climbs.drop_duplicates("frames", keep="first", inplace=True)
         self.holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
         self.transform = transform
