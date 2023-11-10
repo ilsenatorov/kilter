@@ -9,9 +9,7 @@ torch.set_float32_matmul_precision("medium")
 
 # Define the command-line arguments
 parser = argparse.ArgumentParser(description="Your program description")
-parser.add_argument(
-    "--embedding_dim", type=int, default=256, help="Size of embedding for image"
-)
+parser.add_argument("--embedding_dim", type=int, default=256, help="Size of embedding for image")
 parser.add_argument("--dim", type=int, default=1024, help="Model dimension")
 parser.add_argument("--depth", type=int, default=4, help="Model depth")
 parser.add_argument("--heads", type=int, default=8, help="Number of attention heads")
@@ -41,7 +39,8 @@ trainer = pl.Trainer(
             verbose=False,
             mode="min",
             min_delta=0.1,
-        )
+        ),
+        pl.callbacks.ModelCheckpoint(monitor="val/loss", mode="min", save_top_k=1),
     ],
     max_epochs=1000,
     precision="bf16-mixed",

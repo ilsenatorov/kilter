@@ -1,3 +1,6 @@
+from typing import Union
+import pandas as pd
+import numpy as np
 import torch
 from PIL import Image
 
@@ -44,28 +47,53 @@ def get_climb_score(climb):
     return score
 
 
-def encode_frame(frames: str, holds) -> torch.Tensor:
-    matrix = torch.zeros((4, 48, 48), dtype=torch.long)
-    for frame in frames.split("p")[1:]:
-        hold_id, color = frame.split("r")
-        hold_id, color = int(hold_id), int(color) - 12
-        hold = holds.loc[hold_id]
-        x, y = (hold.x - 4) // 4, (hold.y - 4) // 4
-        matrix[color, x, y] = 1
-    return matrix.float()
+class EncoderDecoder:
+    """Converts frames to tensors and back"""
 
+    def __init__(self, holds: pd.DataFrame):
+        self.holds = holds
+        self.coord_to_id = self._create_coord_to_id()
+        self.id_to_coord = self._create_id_to_coord()
 
-def decode_frame(matrix, holds) -> str:
-    frames = []
-    for color in range(matrix.shape[0]):
-        for x in range(matrix.shape[1]):
-            for y in range(matrix.shape[2]):
-                if matrix[color, x, y] == 1:
-                    hold_id = holds[(holds["x"] == (x * 4 + 4)) & (holds["y"] == (y * 4 + 4))].index[0]
-                    role = color + 12
-                    frames.append((hold_id, role))
-    sorted_frames = sorted(frames, key=lambda x: x[0])
-    return "".join([f"p{hold_id}r{role}" for hold_id, role in sorted_frames])
+    def _create_coord_to_id(self):
+        hold_lookup_matrix = np.zeros((48, 48), dtype=int)
+        for i in range(48):
+            for j in range(48):
+                hold = self.holds[(self.holds["x"] == (i * 4 + 4)) & (self.holds["y"] == (j * 4 + 4))]
+                if not hold.empty:
+                    hold_lookup_matrix[i, j] = int(hold.index[0])
+        return hold_lookup_matrix
+
+    def _create_id_to_coord(self):
+        id_to_coord = self.holds[["x", "y"]]
+        id_to_coord = (id_to_coord - 4) // 4
+        return id_to_coord.transpose().to_dict(orient="list")
+
+    def str_to_tensor(self, frames: str) -> torch.Tensor:
+        matrix = torch.zeros((4, 48, 48), dtype=torch.long)
+        for frame in frames.split("p")[1:]:
+            hold_id, color = frame.split("r")
+            hold_id, color = int(hold_id), int(color) - 12
+            coords = self.id_to_coord[hold_id]
+            matrix[color, coords[0], coords[1]] = 1
+        return matrix.float()
+
+    def tensor_to_str(self, matrix: torch.Tensor) -> str:
+        frames = []
+        for color, x, y in zip(*torch.where(matrix)):
+            hold_id = self.coord_to_id[x.item(), y.item()]
+            role = color.item() + 12
+            frames.append((hold_id, role))
+        sorted_frames = sorted(frames, key=lambda x: x[0])
+        return "".join([f"p{hold_id}r{role}" for hold_id, role in sorted_frames])
+
+    def __call__(self, inp: Union[str, torch.Tensor]) -> Union[torch.Tensor, str]:
+        if isinstance(inp, torch.Tensor):
+            return self.tensor_to_str(inp)
+        elif isinstance(inp, str):
+            return self.str_to_tensor(inp)
+        else:
+            raise ValueError(f"Must be either string or Tensor! You provided {type(inp)}")
 
 
 def jaccard_similarity(frames1: str, frames2: str):

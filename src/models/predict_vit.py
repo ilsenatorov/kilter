@@ -12,7 +12,7 @@ class KilterModel(pl.LightningModule):
         self.vit = ViT(
             image_size=48,
             channels=4,
-            patch_size=10,
+            patch_size=8,
             num_classes=config["embedding_dim"],
             dim=config["dim"],
             depth=config["depth"],

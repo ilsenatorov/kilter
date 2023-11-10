@@ -3,7 +3,7 @@ import torch
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
-from ..utils import encode_frame
+from ..utils import EncoderDecoder
 
 
 class KilterDataset(Dataset):
@@ -20,7 +20,8 @@ class KilterDataset(Dataset):
             "test",
         ], "split needs to be one of train, val or test"
         self.climbs = pd.read_csv(self.root_dir / f"raw/{split}.csv", index_col=0)
-        self.holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
+        holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
+        self.encdec = EncoderDecoder(holds)
         self.transform = transform
         self.split = split
         self.data = self._load_or_preprocess_data()
@@ -38,7 +39,7 @@ class KilterDataset(Dataset):
     def _preprocess_data(self):
         data = []
         for _, row in tqdm(self.climbs.iterrows()):
-            img = encode_frame(row["frames"], self.holds)
+            img = self.encdec(row["frames"])
             angle = float(row["angle"])
             difficulty = float(row["difficulty_average"])
             data.append((img, angle, difficulty))
