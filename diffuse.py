@@ -2,7 +2,7 @@ import argparse
 import pytorch_lightning as pl
 import torch
 import wandb
-from src.models.diffusion_unet import DiffusionUNet, DiffusionUViT
+from src.models.diffusion_unet import GuidedDiffusionModel
 from torch.utils.data import DataLoader
 from src.data.datasets import KilterDiffusionDataset
 
@@ -21,7 +21,7 @@ args = parser.parse_args()
 # Create config dictionary from command-line arguments
 config = vars(args)
 
-model = DiffusionUNet(config)
+model = GuidedDiffusionModel(config)
 
 ds = KilterDiffusionDataset()
 dl = DataLoader(
@@ -37,7 +37,7 @@ trainer = pl.Trainer(
     max_epochs=1000,
     # precision="",
     callbacks=[
-        pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-2),
+        # pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-2),
         pl.callbacks.ModelCheckpoint(monitor="train/loss", mode="min", save_top_k=1),
         pl.callbacks.EarlyStopping(monitor="train/loss", mode="min", patience=10),
     ],

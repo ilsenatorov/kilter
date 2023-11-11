@@ -11,7 +11,7 @@ class KilterModel(pl.LightningModule):
         super().__init__()
         self.vit = ViT(
             image_size=48,
-            channels=4,
+            channels=5,
             patch_size=8,
             num_classes=config["embedding_dim"],
             dim=config["dim"],
@@ -21,14 +21,11 @@ class KilterModel(pl.LightningModule):
             dropout=config["dropout"],
             emb_dropout=config["dropout"],
         )
-        self.angle_mlp = nn.Sequential(nn.Linear(1, 16), nn.ReLU())
-        self.combined_mlp = nn.Sequential(nn.Linear(config["embedding_dim"] + 16, 1))
+        self.mlp = nn.Sequential(nn.Linear(config["embedding_dim"], 1))
 
-    def forward(self, x: torch.Tensor, angle: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.vit(x)
-        angle_x = self.angle_mlp(angle.unsqueeze(-1).float())
-        x = torch.cat([x, angle_x], dim=1)
-        return self.combined_mlp(x)
+        return self.mlp(x)
 
     def top1_top3_accuracy(self, preds, difficulty):
         diff = (preds - difficulty).abs()
@@ -38,9 +35,9 @@ class KilterModel(pl.LightningModule):
         return top1_guesses.sum() / num_samples, top3_guesses.sum() / num_samples
 
     def shared_step(self, batch, step: str):
-        x, angle, difficulty = batch
+        x, difficulty = batch
         difficulty = difficulty.float()
-        preds = self.forward(x.float(), angle.float()).squeeze(-1)
+        preds = self.forward(x).squeeze(-1)
         loss = F.mse_loss(preds, difficulty)
         mae = metrics.mean_absolute_error(preds, difficulty)
         spear = metrics.spearman_corrcoef(preds, difficulty)

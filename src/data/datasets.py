@@ -39,19 +39,18 @@ class KilterDataset(Dataset):
     def _preprocess_data(self):
         data = []
         for _, row in tqdm(self.climbs.iterrows()):
-            img = self.encdec(row["frames"])
-            angle = float(row["angle"])
+            img = self.encdec(row["frames"], float(row["angle"]))
             difficulty = float(row["difficulty_average"])
-            data.append((img, angle, difficulty))
+            data.append((img, difficulty))
         return data
 
     def __getitem__(self, idx):
-        image, angle, difficulty = self.data[idx]
+        image, difficulty = self.data[idx]
 
         if self.transform:
             image = self.transform(image)
 
-        return image, angle, difficulty
+        return image, difficulty
 
     def __len__(self):
         return len(self.data)
@@ -64,10 +63,8 @@ class KilterDiffusionDataset(KilterDataset):
         transform=None,
     ):
         self.root_dir = Path(root_dir)
-        self.climbs = pd.read_csv(
-            self.root_dir / "raw/all_climbs.csv", index_col=0
-        ).sort_values("ascensionist_count", ascending=False)
-        self.climbs.drop_duplicates("frames", keep="first", inplace=True)
+        self.climbs = pd.read_csv(self.root_dir / "raw/all_climbs.csv", index_col=0)
+        # self.climbs.drop_duplicates("frames", keep="first", inplace=True)
         holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
         self.encdec = EncoderDecoder(holds)
         self.transform = transform

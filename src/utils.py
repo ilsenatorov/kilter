@@ -25,6 +25,7 @@ def plot_climb(climb: torch.Tensor) -> Image:
 
 def get_climb_score(climb: torch.Tensor) -> float:
     """Score climb based on validity"""
+    climb = climb[:-1, :, :]
     score = 0
     start, middle, finish, foot = climb.sum(dim=[1, 2]).tolist()
     if start in [1, 2]:
@@ -116,33 +117,37 @@ class EncoderDecoder:
         id_to_coord = (id_to_coord - 4) // 4
         return id_to_coord.transpose().to_dict(orient="list")
 
-    def str_to_tensor(self, frames: str) -> torch.Tensor:
-        matrix = torch.zeros((4, 48, 48), dtype=torch.long)
+    def str_to_tensor(self, frames: str, angle: float) -> torch.Tensor:
+        angle_matrix = torch.ones((1, 48, 48), dtype=torch.float32) * (angle / 70)
+        matrix = torch.zeros((4, 48, 48), dtype=torch.float32)
         for frame in frames.split("p")[1:]:
             hold_id, color = frame.split("r")
             hold_id, color = int(hold_id), int(color) - 12
             coords = self.id_to_coord[hold_id]
             matrix[color, coords[0], coords[1]] = 1
-        return matrix.float()
+        return torch.cat((matrix, angle_matrix), dim=0)
 
     def tensor_to_str(self, matrix: torch.Tensor) -> str:
+        angle_matrix = matrix[-1]
+        matrix = matrix[:-1, :, :]
         frames = []
         for color, x, y in zip(*torch.where(matrix)):
             hold_id = self.coord_to_id[x.item(), y.item()]
             role = color.item() + 12
             frames.append((hold_id, role))
         sorted_frames = sorted(frames, key=lambda x: x[0])
-        return "".join([f"p{hold_id}r{role}" for hold_id, role in sorted_frames])
+        return (
+            "".join([f"p{hold_id}r{role}" for hold_id, role in sorted_frames]),
+            (angle_matrix.mean() * 70).round().long().item(),
+        )
 
-    def __call__(self, inp: Union[str, torch.Tensor]) -> Union[torch.Tensor, str]:
-        if isinstance(inp, torch.Tensor):
-            return self.tensor_to_str(inp)
-        elif isinstance(inp, str):
-            return self.str_to_tensor(inp)
+    def __call__(self, *args):
+        if len(args) == 1:
+            return self.tensor_to_str(*args)
+        elif len(args) == 2:
+            return self.str_to_tensor(*args)
         else:
-            raise ValueError(
-                f"Must be either string or Tensor! You provided {type(inp)}"
-            )
+            raise ValueError(f"Only 2 input args allowed! You provided {len(args)}")
 
 
 def jaccard_similarity(frames1: str, frames2: str):
