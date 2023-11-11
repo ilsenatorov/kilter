@@ -1,8 +1,7 @@
 import argparse
 import pytorch_lightning as pl
-import torch
 import wandb
-from src.models.diffusion_unet import GuidedDiffusionModel
+from src.models.diffusion import GuidedDiffusionModel
 from torch.utils.data import DataLoader
 from src.data.datasets import KilterDiffusionDataset
 
