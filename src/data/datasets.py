@@ -64,11 +64,12 @@ class KilterDiffusionDataset(KilterDataset):
         transform=None,
     ):
         self.root_dir = Path(root_dir)
-        self.climbs = pd.read_csv(self.root_dir / "raw/all_climbs.csv", index_col=0).sort_values(
-            "ascensionist_count", ascending=False
-        )
+        self.climbs = pd.read_csv(
+            self.root_dir / "raw/all_climbs.csv", index_col=0
+        ).sort_values("ascensionist_count", ascending=False)
         self.climbs.drop_duplicates("frames", keep="first", inplace=True)
-        self.holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
+        holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
+        self.encdec = EncoderDecoder(holds)
         self.transform = transform
         self.data = self._load_or_preprocess_data()
 

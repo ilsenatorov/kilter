@@ -5,7 +5,7 @@ import wandb
 from src.models.predict_vit import KilterModel
 from src.data.datamodules import KilterDataModule
 
-torch.set_float32_matmul_precision("medium")
+# torch.set_float32_matmul_precision("medium")
 
 # Define the command-line arguments
 parser = argparse.ArgumentParser(description="Your program description")
@@ -43,7 +43,7 @@ trainer = pl.Trainer(
         pl.callbacks.ModelCheckpoint(monitor="val/loss", mode="min", save_top_k=1),
     ],
     max_epochs=1000,
-    precision="bf16-mixed",
+    # precision="bf16-mixed",
 )
 
 trainer.fit(model=model, datamodule=dm)

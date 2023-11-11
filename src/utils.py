@@ -23,7 +23,7 @@ def plot_climb(climb: torch.Tensor) -> Image:
     return Image.fromarray(colored_image.numpy()).rotate(90)
 
 
-def get_climb_score(climb):
+def get_climb_score(climb: torch.Tensor) -> float:
     """Score climb based on validity"""
     score = 0
     start, middle, finish, foot = climb.sum(dim=[1, 2]).tolist()
@@ -39,12 +39,57 @@ def get_climb_score(climb):
         x, y = (argmax // climb.size(2), argmax % climb.size(2))
         if y >= 30:
             score += 0.5
-
     if middle >= 1:
         score += 0.5
     if foot >= 1:
         score += 0.5
     return score
+
+
+def climb_loss(climb: torch.Tensor) -> torch.Tensor:
+    """Differentiable score"""
+    max_score = 4.0  # Adjust based on maximum possible score
+
+    # Calculate the total number of each type of hold
+    start, middle, finish, foot = climb.sum(dim=[1, 2])
+
+    # Loss for start holds (assuming 1 or 2 start holds is ideal)
+    start_loss = torch.abs((start - 1.5) / 1.5)
+
+    # Loss for finish holds (assuming exactly 1 finish hold is ideal)
+    finish_loss = torch.abs(finish - 1)
+
+    # Loss for middle and foot holds (assuming at least 1 is ideal)
+    middle_loss = 1.0 - torch.clamp(middle, min=0, max=1)
+    foot_loss = 1.0 - torch.clamp(foot, min=0, max=1)
+
+    # Soft argmax for position-based scoring
+    def soft_argmax(tensor):
+        flattened = tensor.flatten()
+        softmax = torch.nn.functional.softmax(flattened, dim=0)
+        coords = torch.arange(0, tensor.numel())
+        return torch.sum(softmax * coords) / tensor.numel()
+
+    # Calculate the y-coordinates using a soft argmax
+    start_y = soft_argmax(climb[0])
+    finish_y = soft_argmax(climb[2])
+
+    # Position-based losses (e.g., start holds should be lower, finish higher)
+    start_position_loss = torch.clamp((30 - start_y) / 30, min=0)
+    finish_position_loss = torch.clamp((finish_y - 30) / (climb.size(2) - 30), min=0)
+
+    # Combine all losses
+    total_loss = (
+        start_loss
+        + finish_loss
+        + middle_loss
+        + foot_loss
+        + start_position_loss
+        + finish_position_loss
+    )
+
+    # Invert the logic so that lower loss means a better climb
+    return max_score - total_loss
 
 
 class EncoderDecoder:
@@ -59,7 +104,9 @@ class EncoderDecoder:
         hold_lookup_matrix = np.zeros((48, 48), dtype=int)
         for i in range(48):
             for j in range(48):
-                hold = self.holds[(self.holds["x"] == (i * 4 + 4)) & (self.holds["y"] == (j * 4 + 4))]
+                hold = self.holds[
+                    (self.holds["x"] == (i * 4 + 4)) & (self.holds["y"] == (j * 4 + 4))
+                ]
                 if not hold.empty:
                     hold_lookup_matrix[i, j] = int(hold.index[0])
         return hold_lookup_matrix
@@ -93,7 +140,9 @@ class EncoderDecoder:
         elif isinstance(inp, str):
             return self.str_to_tensor(inp)
         else:
-            raise ValueError(f"Must be either string or Tensor! You provided {type(inp)}")
+            raise ValueError(
+                f"Must be either string or Tensor! You provided {type(inp)}"
+            )
 
 
 def jaccard_similarity(frames1: str, frames2: str):
@@ -119,7 +168,9 @@ def check_nearby(hold1, hold2, threshold=1):
     nearby_count = 0
     for y, x in zip(y1, x1):
         # Check if there's any hold in hold2 within the threshold distance
-        if torch.any((torch.abs(y2 - y) <= threshold) & (torch.abs(x2 - x) <= threshold)):
+        if torch.any(
+            (torch.abs(y2 - y) <= threshold) & (torch.abs(x2 - x) <= threshold)
+        ):
             nearby_count += 1
     maxlen = max(len(y1), len(y2))
     return nearby_count / maxlen if maxlen > 0 else 0
@@ -131,6 +182,8 @@ def climb_similarity(climb1, climb2, threshold=1):
 
     similarity_scores = []
     for i in range(2):  # Iterate over handholds and footholds
-        similarity_scores.append(check_nearby(combined_climb1[i], combined_climb2[i], threshold=threshold))
+        similarity_scores.append(
+            check_nearby(combined_climb1[i], combined_climb2[i], threshold=threshold)
+        )
 
     return sum(similarity_scores) / len(similarity_scores)
