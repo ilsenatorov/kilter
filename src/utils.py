@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import torch
 from PIL import Image
+import cv2
 
 colors = torch.tensor(
     [
@@ -50,26 +51,31 @@ def get_climb_score(climb: torch.Tensor) -> float:
 class EncoderDecoder:
     """Converts frames to tensors and back"""
 
-    def __init__(self, holds: pd.DataFrame):
-        self.holds = holds
-        self.coord_to_id = self._create_coord_to_id()
-        self.id_to_coord = self._create_id_to_coord()
+    def __init__(self):
+        holds = pd.read_csv("data/raw/holds.csv", index_col=0)
+        image_coords = pd.read_csv("figs/image_coords.csv", index_col=0)
+        self.coord_to_id = self._create_coord_to_id(holds)
+        self.id_to_coord = self._create_id_to_coord(holds)
+        self.image_coords = self._create_image_coords(image_coords)
 
-    def _create_coord_to_id(self):
+    def _create_coord_to_id(self, holds:pd.DataFrame):
         hold_lookup_matrix = np.zeros((48, 48), dtype=int)
         for i in range(48):
             for j in range(48):
-                hold = self.holds[
-                    (self.holds["x"] == (i * 4 + 4)) & (self.holds["y"] == (j * 4 + 4))
+                hold = holds[
+                    (holds["x"] == (i * 4 + 4)) & (holds["y"] == (j * 4 + 4))
                 ]
                 if not hold.empty:
                     hold_lookup_matrix[i, j] = int(hold.index[0])
         return hold_lookup_matrix
 
-    def _create_id_to_coord(self):
-        id_to_coord = self.holds[["x", "y"]]
+    def _create_id_to_coord(self, holds):
+        id_to_coord = holds[["x", "y"]]
         id_to_coord = (id_to_coord - 4) // 4
         return id_to_coord.transpose().to_dict(orient="list")
+
+    def _create_image_coords(self, image_coords):
+        return {name: (row["x"], row["y"]) for name, row in image_coords.iterrows()}
 
     def str_to_tensor(self, frames: str, angle: float) -> torch.Tensor:
         angle_matrix = torch.ones((1, 48, 48), dtype=torch.float32) * (angle / 70)
@@ -98,6 +104,25 @@ class EncoderDecoder:
         return (
             "".join([f"p{hold_id}r{role}" for hold_id, role in sorted_frames]), angle
         )
+    
+    def plot_climb(self, frames:str):
+        assert isinstance(frames, str), "Input must be frames!"
+        board_path = "figs/full_board_commercial.png"
+        board_image = cv2.imread(board_path)
+        for hold in frames.split("p")[1:]:
+            hold_id,hold_type = hold.split("r")
+            radius = 30
+            thickness = 2
+            if hold_type == str(12):
+                color = (0,255,0) #start
+            if hold_type == str(13): # hands
+                color = (255,255,0)
+            if hold_type == str(14): # end
+                color = (255,0,255)
+            if hold_type == str(15): # feet
+                color = (0,255,255)
+            image = cv2.circle(board_image, self.image_coords[int(hold_id)], radius, color, thickness)
+        return image
 
     def __call__(self, *args):
         if len(args) == 1:
