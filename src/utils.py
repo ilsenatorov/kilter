@@ -33,13 +33,13 @@ def get_climb_score(climb: torch.Tensor) -> float:
         score += 1.0
         argmax = climb[0].argmax()
         x, y = (argmax // climb.size(2), argmax % climb.size(2))
-        if y <= 30:
+        if y <= 25:
             score += 0.5
     if finish == 1:
         score += 1.0
         argmax = climb[2].argmax()
         x, y = (argmax // climb.size(2), argmax % climb.size(2))
-        if y >= 30:
+        if y >= 25:
             score += 0.5
     if middle >= 1:
         score += 0.5
@@ -49,7 +49,10 @@ def get_climb_score(climb: torch.Tensor) -> float:
 
 
 class EncoderDecoder:
-    """Converts frames to tensors and back"""
+    """Converts frames to tensors and back.
+    If given tensor - returns string and angle.
+    If given string and angle - returns (5,48,48) tensor.
+    """
 
     def __init__(self):
         holds = pd.read_csv("data/raw/holds.csv", index_col=0)
@@ -89,15 +92,19 @@ class EncoderDecoder:
 
     def tensor_to_str(self, matrix: torch.Tensor) -> str:
         angle = (matrix[-1].mean() * 70).round().long().item()
-        matrix = matrix[:-1, :, :]
+        matrix = matrix[:-1, :, :].round().long()
         frames = []
         counter = [0,0,0,0]
         for color, x, y in zip(*torch.where(matrix)):
             counter[color] += 1
             color, x, y = color.item(), x.item(), y.item()
-            if counter[color] > 2 and color in [0,2]:
+            # too many start/end holds
+            if counter[color] > 2 and color in [0,2]: 
                 continue
             hold_id = self.coord_to_id[x, y]
+            # wrong hold position
+            if hold_id == 0:
+                continue
             role = color + 12
             frames.append((hold_id, role))
         sorted_frames = sorted(frames, key=lambda x: x[0])
@@ -106,21 +113,23 @@ class EncoderDecoder:
         )
     
     def plot_climb(self, frames:str):
-        assert isinstance(frames, str), "Input must be frames!"
+        assert isinstance(frames, str), f"Input must be frames! Got {type(frames)}"
         board_path = "figs/full_board_commercial.png"
         board_image = cv2.imread(board_path)
         for hold in frames.split("p")[1:]:
             hold_id,hold_type = hold.split("r")
+            if int(hold_id) not in self.image_coords:
+                continue
             radius = 30
             thickness = 2
             if hold_type == str(12):
                 color = (0,255,0) #start
             if hold_type == str(13): # hands
-                color = (255,255,0)
+                color = (0,200,255)
             if hold_type == str(14): # end
                 color = (255,0,255)
             if hold_type == str(15): # feet
-                color = (0,255,255)
+                color = (255,165,0)
             image = cv2.circle(board_image, self.image_coords[int(hold_id)], radius, color, thickness)
         return image
 

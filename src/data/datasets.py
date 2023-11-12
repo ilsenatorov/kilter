@@ -20,8 +20,7 @@ class KilterDataset(Dataset):
             "test",
         ], "split needs to be one of train, val or test"
         self.climbs = pd.read_csv(self.root_dir / f"raw/{split}.csv", index_col=0)
-        holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
-        self.encdec = EncoderDecoder(holds)
+        self.encdec = EncoderDecoder()
         self.transform = transform
         self.split = split
         self.data = self._load_or_preprocess_data()
@@ -64,9 +63,7 @@ class KilterDiffusionDataset(KilterDataset):
     ):
         self.root_dir = Path(root_dir)
         self.climbs = pd.read_csv(self.root_dir / "raw/all_climbs.csv", index_col=0)
-        # self.climbs.drop_duplicates("frames", keep="first", inplace=True)
-        holds = pd.read_csv(self.root_dir / "raw/holds.csv", index_col=0)
-        self.encdec = EncoderDecoder(holds)
+        self.encdec = EncoderDecoder()
         self.transform = transform
         self.data = self._load_or_preprocess_data()
 
