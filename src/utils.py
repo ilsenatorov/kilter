@@ -91,7 +91,7 @@ class EncoderDecoder:
         return torch.cat((matrix, angle_matrix), dim=0)
 
     def tensor_to_str(self, matrix: torch.Tensor) -> str:
-        angle = (matrix[-1].mean() * 70).round().long().item()
+        angle = ((matrix[-1].mean() * 70 / 5).round() * 5).long().item()
         matrix = matrix[:-1, :, :].round().long()
         frames = []
         counter = [0,0,0,0]

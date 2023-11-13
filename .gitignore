@@ -1,8 +1,8 @@
 .*
 !.gitignore
 __*__
-*.csv
 *.pt
+data/
 logs/
 wandb/
 artifacts/
