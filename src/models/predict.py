@@ -7,21 +7,22 @@ from vit_pytorch.vit_for_small_dataset import ViT
 
 
 class KilterModel(pl.LightningModule):
-    def __init__(self, config):
+    def __init__(self, embedding_dim:int=256, dim:int=1024, depth:int=4, heads:int=8, mlp_dim:int=512,dropout:float=0.1, lr:float=1e-4, **kwargs):
         super().__init__()
         self.vit = ViT(
             image_size=48,
             channels=5,
             patch_size=8,
-            num_classes=config["embedding_dim"],
-            dim=config["dim"],
-            depth=config["depth"],
-            heads=config["heads"],
-            mlp_dim=config["mlp_dim"],
-            dropout=config["dropout"],
-            emb_dropout=config["dropout"],
+            num_classes=embedding_dim,
+            dim=dim,
+            depth=depth,
+            heads=heads,
+            mlp_dim=mlp_dim,
+            dropout=dropout,
+            emb_dropout=dropout,
         )
-        self.mlp = nn.Sequential(nn.Linear(config["embedding_dim"], 1))
+        self.mlp = nn.Sequential(nn.Linear(embedding_dim, 1))
+        self.lr = lr
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.vit(x)
@@ -63,7 +64,7 @@ class KilterModel(pl.LightningModule):
         return self.shared_step(batch, "test")
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         lr_scheduler = {
             "monitor": "val/loss",
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(

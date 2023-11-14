@@ -1,7 +1,7 @@
 import argparse
 import pytorch_lightning as pl
 import wandb
-from src.models.predict import KilterModel
+from src.models.autoencoder import SimpleAutoEncoder
 from src.data.datamodules import KilterDataModule
 import torch
 
@@ -10,11 +10,6 @@ torch.set_float32_matmul_precision("medium")
 # Define the command-line arguments
 parser = argparse.ArgumentParser(description="Your program description")
 parser.add_argument("--embedding_dim", type=int, default=256, help="Size of embedding for image")
-parser.add_argument("--dim", type=int, default=1024, help="Model dimension")
-parser.add_argument("--depth", type=int, default=4, help="Model depth")
-parser.add_argument("--heads", type=int, default=8, help="Number of attention heads")
-parser.add_argument("--mlp_dim", type=int, default=512, help="MLP dimension")
-parser.add_argument("--dropout", type=float, default=0.1, help="Dropout")
 parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
 parser.add_argument("--batch_size", type=int, default=512, help="Batch size")
 parser.add_argument("--num_workers", type=int, default=16, help="Number of workers")
@@ -23,11 +18,11 @@ args = parser.parse_args()
 
 config = vars(args)
 
-model = KilterModel(**config)
+model = SimpleAutoEncoder(**config)
 
 dm = KilterDataModule(args.batch_size, args.num_workers)
 
-wandb.init(config=config, project="kilter")
+wandb.init(config=config, project="kilter_autoencoder")
 
 trainer = pl.Trainer(
     accelerator="gpu",

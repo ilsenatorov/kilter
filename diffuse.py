@@ -12,9 +12,9 @@ parser.add_argument("--model", type=str, default="normal", choices=["normal", "g
 parser.add_argument("--dim", type=int, default=64, help="Model dimension")
 parser.add_argument("--timesteps", type=int, default=1000, help="Timesteps")
 parser.add_argument("--objective", type=str, default="pred_v", help="Objective")
+parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
 parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
 parser.add_argument("--num_workers", type=int, default=16, help="Number of workers")
-parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
 args = parser.parse_args()
 
 
@@ -22,7 +22,7 @@ args = parser.parse_args()
 config = vars(args)
 
 model_types = {"normal" : DiffusionModel, "guided" : GuidedDiffusionModel, "simple" : SimpleDiffusionModel}
-model = model_types[args.model](config)
+model = model_types[args.model](**config)
 
 ds = KilterDiffusionDataset()
 dl = DataLoader(
