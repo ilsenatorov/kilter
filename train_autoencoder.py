@@ -1,9 +1,11 @@
 import argparse
+
 import pytorch_lightning as pl
-import wandb
-from src.models.autoencoder import SimpleAutoEncoder
-from src.data.datamodules import KilterDataModule
 import torch
+
+import wandb
+from src.data.datamodules import KilterDataModule
+from src.models.autoencoder import SimpleAutoEncoder
 
 torch.set_float32_matmul_precision("medium")
 

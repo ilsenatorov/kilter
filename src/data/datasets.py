@@ -1,24 +1,24 @@
-from torch.utils.data import Dataset
-import torch
-import pandas as pd
 from pathlib import Path
+from typing import Callable, Literal, Tuple
+
+import pandas as pd
+import torch
+from torch.utils.data import Dataset
 from tqdm import tqdm
+
 from ..utils import EncoderDecoder
 
 
 class KilterDataset(Dataset):
+    """Kilter dataset for prediction, use split to select between train, val and test"""
+
     def __init__(
         self,
         root_dir: str = "data",
-        split: str = "train",
-        transform=None,
+        split: Literal["train", "val", "test"] = "train",
+        transform: Callable = None,
     ):
         self.root_dir = Path(root_dir)
-        assert split in [
-            "train",
-            "val",
-            "test",
-        ], "split needs to be one of train, val or test"
         self.climbs = pd.read_csv(self.root_dir / f"raw/{split}.csv", index_col=0)
         self.encdec = EncoderDecoder()
         self.transform = transform
@@ -43,7 +43,7 @@ class KilterDataset(Dataset):
             data.append((img, difficulty))
         return data
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, float]:
         image, difficulty = self.data[idx]
 
         if self.transform:
@@ -56,10 +56,12 @@ class KilterDataset(Dataset):
 
 
 class KilterDiffusionDataset(KilterDataset):
+    """Diffusion dataset, has no splits and loads all of the data."""
+
     def __init__(
         self,
         root_dir: str = "data",
-        transform=None,
+        transform: Callable = None,
     ):
         self.root_dir = Path(root_dir)
         self.climbs = pd.read_csv(self.root_dir / "raw/all_climbs.csv", index_col=0)

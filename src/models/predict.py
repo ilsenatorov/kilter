@@ -1,13 +1,25 @@
+from typing import Literal
+
 import pytorch_lightning as pl
-from torch import nn
 import torch
 import torch.nn.functional as F
 import torchmetrics.functional as metrics
+from torch import nn
 from vit_pytorch.vit_for_small_dataset import ViT
 
 
 class KilterModel(pl.LightningModule):
-    def __init__(self, embedding_dim:int=256, dim:int=1024, depth:int=4, heads:int=8, mlp_dim:int=512,dropout:float=0.1, lr:float=1e-4, **kwargs):
+    def __init__(
+        self,
+        embedding_dim: int = 256,
+        dim: int = 1024,
+        depth: int = 4,
+        heads: int = 8,
+        mlp_dim: int = 512,
+        dropout: float = 0.1,
+        lr: float = 1e-4,
+        **kwargs,
+    ):
         super().__init__()
         self.vit = ViT(
             image_size=48,
@@ -28,14 +40,14 @@ class KilterModel(pl.LightningModule):
         x = self.vit(x)
         return self.mlp(x)
 
-    def top1_top3_accuracy(self, preds, difficulty):
+    def top1_top3_accuracy(self, preds: torch.Tensor, difficulty: torch.Tensor) -> torch.Tensor:
         diff = (preds - difficulty).abs()
         num_samples = diff.size(0)
         top1_guesses = (diff < 1).long()
         top3_guesses = (diff < 3).long()
         return top1_guesses.sum() / num_samples, top3_guesses.sum() / num_samples
 
-    def shared_step(self, batch, step: str):
+    def shared_step(self, batch: tuple[torch.Tensor, torch.Tensor], *, step: Literal["train", "test", "val"]):
         x, difficulty = batch
         difficulty = difficulty.float()
         preds = self.forward(x).squeeze(-1)
@@ -54,14 +66,14 @@ class KilterModel(pl.LightningModule):
         self.log(f"{step}/top3", top3)
         return loss
 
-    def training_step(self, batch, batch_idx):
-        return self.shared_step(batch, "train")
+    def training_step(self, *args, **kwargs):
+        return self.shared_step(*args, **kwargs, step="train")
 
-    def validation_step(self, batch, batch_idx):
-        return self.shared_step(batch, "val")
+    def validation_step(self, *args, **kwargs):
+        return self.shared_step(*args, **kwargs, step="val")
 
-    def test_step(self, batch, batch_idx):
-        return self.shared_step(batch, "test")
+    def test_step(self, *args, **kwargs):
+        return self.shared_step(*args, **kwargs, step="test")
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)

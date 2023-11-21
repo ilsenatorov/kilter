@@ -1,9 +1,10 @@
 from typing import Union
-import pandas as pd
+
+import cv2
 import numpy as np
+import pandas as pd
 import torch
 from PIL import Image
-import cv2
 
 colors = torch.tensor(
     [
@@ -61,23 +62,21 @@ class EncoderDecoder:
         self.id_to_coord = self._create_id_to_coord(holds)
         self.image_coords = self._create_image_coords(image_coords)
 
-    def _create_coord_to_id(self, holds:pd.DataFrame):
+    def _create_coord_to_id(self, holds: pd.DataFrame) -> np.array:
         hold_lookup_matrix = np.zeros((48, 48), dtype=int)
         for i in range(48):
             for j in range(48):
-                hold = holds[
-                    (holds["x"] == (i * 4 + 4)) & (holds["y"] == (j * 4 + 4))
-                ]
+                hold = holds[(holds["x"] == (i * 4 + 4)) & (holds["y"] == (j * 4 + 4))]
                 if not hold.empty:
                     hold_lookup_matrix[i, j] = int(hold.index[0])
         return hold_lookup_matrix
 
-    def _create_id_to_coord(self, holds):
+    def _create_id_to_coord(self, holds) -> dict[int, tuple[int, int]]:
         id_to_coord = holds[["x", "y"]]
         id_to_coord = (id_to_coord - 4) // 4
         return id_to_coord.transpose().to_dict(orient="list")
 
-    def _create_image_coords(self, image_coords):
+    def _create_image_coords(self, image_coords: dict[int, tuple[int, int]]):
         return {name: (row["x"], row["y"]) for name, row in image_coords.iterrows()}
 
     def str_to_tensor(self, frames: str, angle: float) -> torch.Tensor:
@@ -94,12 +93,12 @@ class EncoderDecoder:
         angle = ((matrix[-1].mean() * 70 / 5).round() * 5).long().item()
         matrix = matrix[:-1, :, :].round().long()
         frames = []
-        counter = [0,0,0,0]
+        counter = [0, 0, 0, 0]
         for color, x, y in zip(*torch.where(matrix)):
             counter[color] += 1
             color, x, y = color.item(), x.item(), y.item()
             # too many start/end holds
-            if counter[color] > 2 and color in [0,2]: 
+            if counter[color] > 2 and color in [0, 2]:
                 continue
             hold_id = self.coord_to_id[x, y]
             # wrong hold position
@@ -108,28 +107,26 @@ class EncoderDecoder:
             role = color + 12
             frames.append((hold_id, role))
         sorted_frames = sorted(frames, key=lambda x: x[0])
-        return (
-            "".join([f"p{hold_id}r{role}" for hold_id, role in sorted_frames]), angle
-        )
-    
-    def plot_climb(self, frames:str):
+        return ("".join([f"p{hold_id}r{role}" for hold_id, role in sorted_frames]), angle)
+
+    def plot_climb(self, frames: str) -> Image:
         assert isinstance(frames, str), f"Input must be frames! Got {type(frames)}"
         board_path = "figs/full_board_commercial.png"
         board_image = cv2.imread(board_path)
         for hold in frames.split("p")[1:]:
-            hold_id,hold_type = hold.split("r")
+            hold_id, hold_type = hold.split("r")
             if int(hold_id) not in self.image_coords:
                 continue
             radius = 30
             thickness = 2
             if hold_type == str(12):
-                color = (0,255,0) #start
-            if hold_type == str(13): # hands
-                color = (0,200,255)
-            if hold_type == str(14): # end
-                color = (255,0,255)
-            if hold_type == str(15): # feet
-                color = (255,165,0)
+                color = (0, 255, 0)  # start
+            if hold_type == str(13):  # hands
+                color = (0, 200, 255)
+            if hold_type == str(14):  # end
+                color = (255, 0, 255)
+            if hold_type == str(15):  # feet
+                color = (255, 165, 0)
             image = cv2.circle(board_image, self.image_coords[int(hold_id)], radius, color, thickness)
         return image
 
@@ -142,7 +139,7 @@ class EncoderDecoder:
             raise ValueError(f"Only 2 input args allowed! You provided {len(args)}")
 
 
-def jaccard_similarity(frames1: str, frames2: str):
+def jaccard_similarity(frames1: str, frames2: str) -> float:
     set1 = set([x[:-3] for x in frames1.split("p")[1:]])
     set2 = set([x[:-3] for x in frames2.split("p")[1:]])
     intersection = len(set1.intersection(set2))
@@ -150,7 +147,8 @@ def jaccard_similarity(frames1: str, frames2: str):
     return intersection / union if union != 0 else 0
 
 
-def combine_handholds(tensor):
+def combine_handholds(tensor: torch.Tensor) -> torch.Tensor:
+    """Combines middle, hand and finish holds into one layer, footholds on another"""
     tensor = tensor.long()
     # Combine start, middle, and finish holds into one channel
     handholds = tensor[0] | tensor[1] | tensor[2]  # Logical OR operation
@@ -158,29 +156,25 @@ def combine_handholds(tensor):
     return torch.stack([handholds, footholds])
 
 
-def check_nearby(hold1, hold2, threshold=1):
+def check_nearby(hold1: torch.Tensor, hold2: torch.Tensor, threshold: int = 1) -> float:
     y1, x1 = torch.where(hold1)
     y2, x2 = torch.where(hold2)
 
     nearby_count = 0
     for y, x in zip(y1, x1):
         # Check if there's any hold in hold2 within the threshold distance
-        if torch.any(
-            (torch.abs(y2 - y) <= threshold) & (torch.abs(x2 - x) <= threshold)
-        ):
+        if torch.any((torch.abs(y2 - y) <= threshold) & (torch.abs(x2 - x) <= threshold)):
             nearby_count += 1
     maxlen = max(len(y1), len(y2))
     return nearby_count / maxlen if maxlen > 0 else 0
 
 
-def climb_similarity(climb1, climb2, threshold=1):
+def climb_similarity(climb1: torch.Tensor, climb2: torch.tensor, threshold: int = 1) -> float:
     combined_climb1 = combine_handholds(climb1)
     combined_climb2 = combine_handholds(climb2)
 
     similarity_scores = []
     for i in range(2):  # Iterate over handholds and footholds
-        similarity_scores.append(
-            check_nearby(combined_climb1[i], combined_climb2[i], threshold=threshold)
-        )
+        similarity_scores.append(check_nearby(combined_climb1[i], combined_climb2[i], threshold=threshold))
 
     return sum(similarity_scores) / len(similarity_scores)

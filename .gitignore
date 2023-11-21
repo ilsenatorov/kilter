@@ -1,8 +1,10 @@
 .*
 !.gitignore
+!.pre-commit-config.yaml
 __*__
 *.pt
 data/
 logs/
 wandb/
 artifacts/
+test.ipynb

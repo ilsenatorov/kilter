@@ -1,9 +1,11 @@
 import argparse
+
 import pytorch_lightning as pl
-import wandb
-from src.models.predict import KilterModel
-from src.data.datamodules import KilterDataModule
 import torch
+
+import wandb
+from src.data.datamodules import KilterDataModule
+from src.models.predict import KilterModel
 
 torch.set_float32_matmul_precision("medium")
 

@@ -1,9 +1,11 @@
 import argparse
+
 import pytorch_lightning as pl
-import wandb
-from src.models.diffusion import GuidedDiffusionModel, DiffusionModel, SimpleDiffusionModel
 from torch.utils.data import DataLoader
+
+import wandb
 from src.data.datasets import KilterDiffusionDataset
+from src.models.diffusion import DiffusionModel, GuidedDiffusionModel, SimpleDiffusionModel
 
 # torch.set_float32_matmul_precision("medium")
 
@@ -21,13 +23,11 @@ args = parser.parse_args()
 # Create config dictionary from command-line arguments
 config = vars(args)
 
-model_types = {"normal" : DiffusionModel, "guided" : GuidedDiffusionModel, "simple" : SimpleDiffusionModel}
+model_types = {"normal": DiffusionModel, "guided": GuidedDiffusionModel, "simple": SimpleDiffusionModel}
 model = model_types[args.model](**config)
 
 ds = KilterDiffusionDataset()
-dl = DataLoader(
-    ds, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True
-)
+dl = DataLoader(ds, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
 wandb.init(config=config, project="kilter_diffusion")
 

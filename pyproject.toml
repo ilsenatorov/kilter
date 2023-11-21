@@ -1,0 +1,27 @@
+[tool.black]
+line-length = 127
+target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+
+
+[tool.isort]
+profile = "black"
+line_length = 127
+
+[tool.mypy]
+ignore_missing_imports = true
+follow_imports = "silent"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+markers = [
+    "slow",
+    "gpu",
+]
+
+[tool.pylint.'MESSAGES CONTROL']
+disable = ["E1101", "E0611", "C0114", "R0901", "W0221", "R0913", "C0103", "W0201", "C0301", "D107", "D100"]
+line-length = 119
+
+[tool.pydocstyle]
+ignore = ["D1"]
