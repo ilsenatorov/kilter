@@ -76,7 +76,7 @@ class EncoderDecoder:
         id_to_coord = (id_to_coord - 4) // 4
         return id_to_coord.transpose().to_dict(orient="list")
 
-    def _create_image_coords(self, image_coords: dict[int, tuple[int, int]]):
+    def _create_image_coords(self, image_coords: pd.DataFrame):
         return {name: (row["x"], row["y"]) for name, row in image_coords.iterrows()}
 
     def str_to_tensor(self, frames: str, angle: float) -> torch.Tensor:

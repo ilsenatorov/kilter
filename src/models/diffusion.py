@@ -14,7 +14,7 @@ class BaseDiffusionModel(pl.LightningModule):
         loss = self.diffusion.forward(img)
         return loss
 
-    def training_step(self, batch: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    def training_step(self, batch: list[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x, difficulty = batch
         x = x.float()
         loss = self.forward(x)

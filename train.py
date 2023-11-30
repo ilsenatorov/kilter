@@ -1,14 +1,5 @@
 import argparse
 
-import pytorch_lightning as pl
-import torch
-
-import wandb
-from src.data.datamodules import KilterDataModule
-from src.models.predict import KilterModel
-
-torch.set_float32_matmul_precision("medium")
-
 # Define the command-line arguments
 parser = argparse.ArgumentParser(description="Your program description")
 parser.add_argument("--embedding_dim", type=int, default=256, help="Size of embedding for image")
@@ -22,9 +13,16 @@ parser.add_argument("--batch_size", type=int, default=512, help="Batch size")
 parser.add_argument("--num_workers", type=int, default=16, help="Number of workers")
 args = parser.parse_args()
 
-
 config = vars(args)
 
+import pytorch_lightning as pl
+import torch
+
+import wandb
+from src.data.datamodules import KilterDataModule
+from src.models.predict import KilterModel
+
+torch.set_float32_matmul_precision("medium")
 model = KilterModel(**config)
 
 dm = KilterDataModule(args.batch_size, args.num_workers)

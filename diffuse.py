@@ -1,15 +1,8 @@
 import argparse
 
-import pytorch_lightning as pl
-from torch.utils.data import DataLoader
-
-import wandb
-from src.data.datasets import KilterDiffusionDataset
-from src.models.diffusion import DiffusionModel, GuidedDiffusionModel, SimpleDiffusionModel
-
 # torch.set_float32_matmul_precision("medium")
 
-parser = argparse.ArgumentParser(description="Your program description")
+parser = argparse.ArgumentParser()
 parser.add_argument("--model", type=str, default="normal", choices=["normal", "guided", "simple"])
 parser.add_argument("--dim", type=int, default=64, help="Model dimension")
 parser.add_argument("--timesteps", type=int, default=1000, help="Timesteps")
@@ -19,6 +12,13 @@ parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
 parser.add_argument("--num_workers", type=int, default=16, help="Number of workers")
 args = parser.parse_args()
 
+
+import pytorch_lightning as pl
+from torch.utils.data import DataLoader
+
+import wandb
+from src.data.datasets import KilterDiffusionDataset
+from src.models.diffusion import DiffusionModel, GuidedDiffusionModel, SimpleDiffusionModel
 
 # Create config dictionary from command-line arguments
 config = vars(args)
