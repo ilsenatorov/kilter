@@ -3,6 +3,7 @@ from typing import Literal
 import pytorch_lightning as pl
 import torch
 from denoising_diffusion_pytorch import GaussianDiffusion, Unet
+from denoising_diffusion_pytorch.denoising_diffusion_pytorch_1d import GaussianDiffusion1D, Unet1D
 from denoising_diffusion_pytorch.simple_diffusion import GaussianDiffusion as ViTGaussianDiffusion
 from denoising_diffusion_pytorch.simple_diffusion import UViT
 
@@ -16,7 +17,7 @@ class BaseDiffusionModel(pl.LightningModule):
 
     def training_step(self, batch: list[torch.Tensor, torch.Tensor]) -> torch.Tensor:
         x, difficulty = batch
-        x = x.float()
+        x = x
         loss = self.forward(x)
 
         self.log("train/loss", loss)
@@ -80,3 +81,28 @@ class SimpleDiffusionModel(BaseDiffusionModel):
             unet, image_size=48, num_sample_steps=timesteps, pred_objective=objective, channels=5
         )
         self.lr = lr
+
+
+class TextDiffusionModel(BaseDiffusionModel):
+    def __init__(
+        self,
+        embedding_dim: int = 64,
+        seq_length: int = 64,
+        lr: float = 1e-4,
+        objective: Literal["pred_noise", "pred_x0", "pred_v"] = "pred_noise",
+        **kwargs,
+    ):
+        super().__init__()
+        self.lr = lr
+        self.embedding = torch.nn.Embedding(550, embedding_dim, padding_idx=0)
+        model = Unet1D(dim=embedding_dim, dim_mults=(1, 2, 4, 8), channels=embedding_dim)
+        self.diffusion = GaussianDiffusion1D(
+            model, seq_length=seq_length, timesteps=1000, objective=objective, auto_normalize=False
+        )
+
+    def forward(self, x: torch.Tensor):
+        batch_size, n_tokens = x.size()
+        x = self.embedding(x)
+        x = x.view(batch_size, -1, n_tokens)
+        loss = self.diffusion.forward(x)
+        return loss

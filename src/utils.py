@@ -178,3 +178,45 @@ def climb_similarity(climb1: torch.Tensor, climb2: torch.tensor, threshold: int 
         similarity_scores.append(check_nearby(combined_climb1[i], combined_climb2[i], threshold=threshold))
 
     return sum(similarity_scores) / len(similarity_scores)
+
+
+class Tokenizer:
+    def __init__(self, df: pd.DataFrame, max_len: int = 64):
+        self.df = df
+        self.max_len = max_len
+        self.token_map = self._get_token_map()
+        self.decode_map = {v: k for k, v in self.token_map.items()}
+
+    @staticmethod
+    def split_tokens(frames: str) -> list[str]:
+        res = []
+        for pair in frames.split("p")[1:]:
+            hold, color = pair.split("r")
+            res += [f"p{hold}", f"r{color}"]
+        return res
+
+    def __call__(self, frames: str) -> torch.Tensor:
+        split = self.split_tokens(frames)
+        n = len(split)
+        if n >= self.max_len:
+            split = split[: self.max_len]
+        else:
+            split += ["[PAD]"] * (self.max_len - n)
+        return torch.tensor([self.token_map[x] for x in split], dtype=torch.long)
+
+    def decode(self, samples: list[list[int]]) -> list[str]:
+        climbs = []
+        for climb in samples:
+            climb_str = ""
+            for hold in climb:
+                climb_str += self.decode_map[hold]
+            climbs.append(climb_str)
+        return climbs
+
+    def _get_token_map(self) -> dict[str, int]:
+        tokens = set()
+        for name, row in self.df.iterrows():
+            tokens.update(self.split_tokens(row["frames"]))
+        token_map = {token: idx + 1 for idx, token in enumerate(tokens)}
+        token_map["[PAD]"] = 0
+        return token_map

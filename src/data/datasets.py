@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from ..utils import EncoderDecoder
+from ..utils import EncoderDecoder, Tokenizer
 
 
 class KilterDataset(Dataset):
@@ -14,7 +14,7 @@ class KilterDataset(Dataset):
 
     def __init__(
         self,
-        root_dir: str = "data",
+        root_dir: str = "data/kilter",
         split: Literal["train", "val", "test"] = "train",
         transform: Callable = None,
     ):
@@ -60,7 +60,7 @@ class KilterDiffusionDataset(KilterDataset):
 
     def __init__(
         self,
-        root_dir: str = "data",
+        root_dir: str = "data/kilterdiffuse",
         transform: Callable = None,
     ):
         self.root_dir = Path(root_dir)
@@ -78,3 +78,38 @@ class KilterDiffusionDataset(KilterDataset):
             (self.root_dir / "processed").mkdir(parents=True, exist_ok=True)
             torch.save(data, processed_file)
         return data
+
+
+class KilterTextDiffusionDataset(Dataset):
+    """Kilter dataset for prediction, use split to select between train, val and test"""
+
+    def __init__(self, root_dir: str = "data/kiltertextdiffuse"):
+        self.root_dir = Path(root_dir)
+        self.climbs = pd.read_csv(self.root_dir / "raw/all_climbs.csv", index_col=0)
+        self.tokenizer = Tokenizer(self.climbs)
+        self.data = self._load_or_preprocess_data()
+
+    def _load_or_preprocess_data(self):
+        processed_file = Path(self.root_dir) / f"processed/diffusion.pt"
+        if processed_file.exists():
+            data = torch.load(processed_file)
+        else:
+            data = self._preprocess_data()
+            (self.root_dir / "processed").mkdir(parents=True, exist_ok=True)
+            torch.save(data, processed_file)
+        return data
+
+    def _preprocess_data(self):
+        data = []
+        for _, row in tqdm(self.climbs.iterrows()):
+            x = self.tokenizer(row["frames"])
+            difficulty = float(row["difficulty_average"])
+            data.append((x, difficulty))
+        return data
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, float]:
+        x, difficulty = self.data[idx]
+        return x, difficulty
+
+    def __len__(self):
+        return len(self.data)
